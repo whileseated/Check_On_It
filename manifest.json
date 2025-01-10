@@ -1,0 +1,18 @@
+{
+    "manifest_version": 3,
+    "name": "Wikipedia Table Enhancer",
+    "version": "1.1.1",
+    "description": "Add checkboxes and CSV export to Wikipedia tables and lists",
+    "permissions": [
+      "activeTab",
+      "scripting"
+    ],
+    "action": {
+      "default_popup": "popup/popup.html"
+    },
+    "content_scripts": [{
+      "matches": ["*://*.wikipedia.org/*"],
+      "js": ["content/content.js"],
+      "css": ["styles/content.css"]
+    }]
+  }

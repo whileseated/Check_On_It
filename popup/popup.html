@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { width: 200px; padding: 10px; }
+    .mode-button { width: 100%; margin: 5px 0; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="initial-buttons">
+    <button class="mode-button" id="pickTable">Select a Table</button>
+    <button class="mode-button" id="pickList">Select a List</button>
+  </div>
+  <div id="picking-mode" class="hidden">
+    <p>Hover over the desired element and click to select it.</p>
+    <button id="cancelPicking">Cancel</button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
