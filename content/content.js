@@ -122,10 +122,11 @@ function enhanceTable(table) {
         row.insertBefore(checkboxCell, row.firstChild);
     });
 
-    // Add CSV download button
+    // Add button container with both CSV and Invert buttons
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'csv-button-container';
     buttonContainer.innerHTML = `
+        <button class="invert-selection-btn">Invert Selection</button>
         <button class="csv-download-btn">Download as CSV</button>
     `;
     table.parentNode.insertBefore(buttonContainer, table.nextSibling);
@@ -206,6 +207,27 @@ function setupTableEventListeners(table) {
         downloadBtn.addEventListener('click', () => {
             const csvContent = generateTableCSV(table);
             downloadCSV(csvContent, 'table-data.csv');
+        });
+    }
+
+    // Add invert selection button functionality
+    const invertBtn = table.nextElementSibling.querySelector('.invert-selection-btn');
+    if (invertBtn) {
+        invertBtn.addEventListener('click', () => {
+            const rowCheckboxes = table.querySelectorAll('.row-checkbox');
+            rowCheckboxes.forEach(checkbox => {
+                checkbox.checked = !checkbox.checked;
+            });
+
+            // Update select all checkbox state
+            const selectAllCheckbox = table.querySelector('.select-all-checkbox');
+            if (selectAllCheckbox) {
+                const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
+                const someChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
+                
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            }
         });
     }
 }
