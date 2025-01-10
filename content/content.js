@@ -147,17 +147,57 @@ function setupTableEventListeners(table) {
         });
     }
 
-    // Update "select all" checkbox state when individual checkboxes change
-    rowCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
+    // Add drag selection variables
+    let isDragging = false;
+    let lastCheckedState = null;
+    let mouseDownTime = 0;
+
+    // Add mousedown event to start dragging
+    table.addEventListener('mousedown', (e) => {
+        const checkbox = e.target.closest('.row-checkbox');
+        if (checkbox) {
+            mouseDownTime = Date.now();
+            isDragging = false;
+            lastCheckedState = checkbox.checked;
+        }
+    });
+
+    // Add mousemove event to detect drag
+    document.addEventListener('mousemove', (e) => {
+        if (!mouseDownTime) return;
+        
+        // Only start dragging if mouse has been down for a bit
+        if (!isDragging && Date.now() - mouseDownTime > 200) {
+            isDragging = true;
+        }
+        
+        if (isDragging) {
+            const checkbox = e.target.closest('.row-checkbox');
+            if (checkbox) {
+                checkbox.checked = !lastCheckedState;
+            }
+        }
+    });
+
+    // Add mouseup event to stop dragging
+    document.addEventListener('mouseup', (e) => {
+        isDragging = false;
+        mouseDownTime = 0;
+        
+        // Update select all checkbox state
+        if (selectAllCheckbox) {
             const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
             const someChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
             
-            if (selectAllCheckbox) {
-                selectAllCheckbox.checked = allChecked;
-                selectAllCheckbox.indeterminate = someChecked && !allChecked;
-            }
-        });
+            selectAllCheckbox.checked = allChecked;
+            selectAllCheckbox.indeterminate = someChecked && !allChecked;
+        }
+    });
+
+    // Add mouseleave event to handle when mouse leaves the table
+    table.addEventListener('mouseleave', () => {
+        isDragging = false;
+        mouseDownTime = 0;
     });
 
     // CSV download button functionality
@@ -183,12 +223,34 @@ function generateTableCSV(table) {
         // Add other cell data
         row.querySelectorAll('th, td').forEach((cell, index) => {
             if (index > 0) { // Skip the checkbox column
-                // Clean the cell text: remove commas, newlines, and extra spaces
-                const cellText = cell.textContent
-                    .replace(/,/g, ';')  // Replace commas with semicolons
+                // Get only visible text content and links
+                let cellText = '';
+                
+                // Get text from links if present
+                const links = cell.querySelectorAll('a');
+                if (links.length > 0) {
+                    cellText = Array.from(links)
+                        .map(link => link.textContent.trim())
+                        .filter(text => text) // Remove empty strings
+                        .join(' ');
+                } else {
+                    // If no links, get direct text content
+                    cellText = cell.textContent;
+                }
+
+                // Clean the text
+                cellText = cellText
+                    .replace(/,/g, ';') // Replace commas with semicolons
                     .replace(/[\n\r]+/g, ' ') // Replace newlines with spaces
+                    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
                     .trim();
-                rowData.push(`"${cellText}"`); // Wrap in quotes to handle special characters
+
+                // Skip empty or style-only content
+                if (cellText && !cellText.startsWith('.mw-parser')) {
+                    rowData.push(`"${cellText}"`);
+                } else {
+                    rowData.push('""'); // Empty cell if no valid content
+                }
             }
         });
         csvRows.push(rowData.join(','));
