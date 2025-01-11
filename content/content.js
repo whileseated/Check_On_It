@@ -60,16 +60,26 @@ function handleClick(e) {
     e.preventDefault();
     e.stopPropagation();
 
-    const selectedElement = highlightedElement; // Store reference before cleanup
-    
-    // Clean up first
-    disablePickingMode();
-    
-    // Then process the element
-    processSelectedElement(selectedElement);
-    
-    // Close the popup last
-    chrome.runtime.sendMessage({ action: 'closePopup' });
+    // Remove hover effect styles
+    const style = document.getElementById('picker-styles');
+    if (style) style.remove();
+
+    // Remove event listeners
+    document.removeEventListener('mouseover', handleMouseOver);
+    document.removeEventListener('mouseout', handleMouseOut);
+    document.removeEventListener('click', handleClick);
+
+    // Reset picking state
+    isPickingElement = false;
+
+    // Enhance the selected element
+    if (elementType === 'table') {
+        enhanceTable(highlightedElement);
+    } else {
+        enhanceList(highlightedElement);
+    }
+
+    highlightedElement = null;
 }
 
 function disablePickingMode() {
@@ -99,40 +109,49 @@ function processSelectedElement(element) {
     element.dataset.enhanced = 'true';
 }
 
-function enhanceTable(table) {
-    // Add checkbox column to all rows uniformly
+function generateTableCSV(table) {
     const rows = table.querySelectorAll('tr');
-    
-    rows.forEach((row, index) => {
-        // Determine if this row contains headers
-        const isHeaderRow = row.querySelector('th') !== null;
-        
-        // Create checkbox cell (th for header rows, td for data rows)
-        const checkboxCell = document.createElement(isHeaderRow ? 'th' : 'td');
-        checkboxCell.style.width = 'min-content'; // Make column as narrow as possible
-        
-        // First row gets the "select all" checkbox without label
-        if (index === 0) {
-            checkboxCell.innerHTML = '<input type="checkbox" class="select-all-checkbox">';
-        } else {
-            checkboxCell.innerHTML = '<input type="checkbox" class="row-checkbox">';
-        }
-        
-        // Insert at the beginning of the row
-        row.insertBefore(checkboxCell, row.firstChild);
+    const csvRows = [];
+
+    rows.forEach(row => {
+        const rowData = [];
+        // Get checkbox state for first column
+        const checkbox = row.querySelector('.row-checkbox, .select-all-checkbox');
+        rowData.push(checkbox ? (checkbox.checked ? '✓' : '') : 'Selected');
+
+        // Get rest of the cells
+        const cells = row.querySelectorAll('th, td');
+        cells.forEach((cell, index) => {
+            if (index === 0 && checkbox) return; // Skip our added checkbox column
+            
+            // Create a temporary div to get clean text content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = cell.innerHTML;
+            
+            // Remove any style or script elements
+            tempDiv.querySelectorAll('style, script, .mw-parser-output').forEach(el => el.remove());
+            
+            // Get clean text
+            let text = tempDiv.textContent
+                .trim()
+                .replace(/,/g, ';')
+                .replace(/\s+/g, ' ');
+                
+            rowData.push(`"${text}"`);
+        });
+
+        csvRows.push(rowData.join(','));
     });
 
-    // Add button container with both CSV and Invert buttons
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'csv-button-container';
-    buttonContainer.innerHTML = `
-        <button class="invert-selection-btn">Invert Selection</button>
-        <button class="csv-download-btn">Download as CSV</button>
-    `;
-    table.parentNode.insertBefore(buttonContainer, table.nextSibling);
+    return csvRows.join('\n');
+}
 
-    // Add event listeners
-    setupTableEventListeners(table);
+function downloadCSV(csvContent, filename) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
 }
 
 function setupTableEventListeners(table) {
@@ -148,12 +167,11 @@ function setupTableEventListeners(table) {
         });
     }
 
-    // Add drag selection variables
+    // Add drag selection functionality
     let isDragging = false;
     let lastCheckedState = null;
     let mouseDownTime = 0;
 
-    // Add mousedown event to start dragging
     table.addEventListener('mousedown', (e) => {
         const checkbox = e.target.closest('.row-checkbox');
         if (checkbox) {
@@ -163,11 +181,9 @@ function setupTableEventListeners(table) {
         }
     });
 
-    // Add mousemove event to detect drag
     document.addEventListener('mousemove', (e) => {
         if (!mouseDownTime) return;
         
-        // Only start dragging if mouse has been down for a bit
         if (!isDragging && Date.now() - mouseDownTime > 200) {
             isDragging = true;
         }
@@ -180,116 +196,60 @@ function setupTableEventListeners(table) {
         }
     });
 
-    // Add mouseup event to stop dragging
-    document.addEventListener('mouseup', (e) => {
-        isDragging = false;
-        mouseDownTime = 0;
-        
-        // Update select all checkbox state
-        if (selectAllCheckbox) {
-            const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
-            const someChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
-            
-            selectAllCheckbox.checked = allChecked;
-            selectAllCheckbox.indeterminate = someChecked && !allChecked;
-        }
-    });
-
-    // Add mouseleave event to handle when mouse leaves the table
-    table.addEventListener('mouseleave', () => {
+    document.addEventListener('mouseup', () => {
         isDragging = false;
         mouseDownTime = 0;
     });
 
-    // CSV download button functionality
+    // Add button functionality
+    const invertBtn = table.nextElementSibling.querySelector('.invert-selection-btn');
     const downloadBtn = table.nextElementSibling.querySelector('.csv-download-btn');
+
+    if (invertBtn) {
+        invertBtn.addEventListener('click', () => {
+            rowCheckboxes.forEach(checkbox => {
+                checkbox.checked = !checkbox.checked;
+            });
+        });
+    }
+
     if (downloadBtn) {
         downloadBtn.addEventListener('click', () => {
             const csvContent = generateTableCSV(table);
             downloadCSV(csvContent, 'table-data.csv');
         });
     }
-
-    // Add invert selection button functionality
-    const invertBtn = table.nextElementSibling.querySelector('.invert-selection-btn');
-    if (invertBtn) {
-        invertBtn.addEventListener('click', () => {
-            const rowCheckboxes = table.querySelectorAll('.row-checkbox');
-            rowCheckboxes.forEach(checkbox => {
-                checkbox.checked = !checkbox.checked;
-            });
-
-            // Update select all checkbox state
-            const selectAllCheckbox = table.querySelector('.select-all-checkbox');
-            if (selectAllCheckbox) {
-                const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
-                const someChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
-                
-                selectAllCheckbox.checked = allChecked;
-                selectAllCheckbox.indeterminate = someChecked && !allChecked;
-            }
-        });
-    }
 }
 
-function generateTableCSV(table) {
-    const rows = table.querySelectorAll('tr');
-    const csvRows = [];
+function enhanceTable(table) {
+    // Add checkbox column header
+    const headerRow = table.querySelector('tr');
+    if (!headerRow) return;
+    
+    // Add header cell for checkbox column
+    const headerCell = document.createElement('th');
+    headerCell.innerHTML = '<input type="checkbox" class="select-all-checkbox">';
+    headerRow.insertBefore(headerCell, headerRow.firstChild);
 
-    rows.forEach(row => {
-        const rowData = [];
-        // Add checkbox state as first column
-        const checkbox = row.querySelector('input[type="checkbox"]');
-        rowData.push(checkbox ? checkbox.checked ? '✓' : '' : 'Selected');
-        
-        // Add other cell data
-        row.querySelectorAll('th, td').forEach((cell, index) => {
-            if (index > 0) { // Skip the checkbox column
-                // Get only visible text content and links
-                let cellText = '';
-                
-                // Get text from links if present
-                const links = cell.querySelectorAll('a');
-                if (links.length > 0) {
-                    cellText = Array.from(links)
-                        .map(link => link.textContent.trim())
-                        .filter(text => text) // Remove empty strings
-                        .join(' ');
-                } else {
-                    // If no links, get direct text content
-                    cellText = cell.textContent;
-                }
-
-                // Clean the text
-                cellText = cellText
-                    .replace(/,/g, ';') // Replace commas with semicolons
-                    .replace(/[\n\r]+/g, ' ') // Replace newlines with spaces
-                    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-                    .trim();
-
-                // Skip empty or style-only content
-                if (cellText && !cellText.startsWith('.mw-parser')) {
-                    rowData.push(`"${cellText}"`);
-                } else {
-                    rowData.push('""'); // Empty cell if no valid content
-                }
-            }
-        });
-        csvRows.push(rowData.join(','));
+    // Add checkboxes to all rows EXCEPT the header row
+    const dataRows = Array.from(table.querySelectorAll('tr')).slice(1);
+    dataRows.forEach(row => {
+        const cell = document.createElement('td');
+        cell.innerHTML = '<input type="checkbox" class="row-checkbox">';
+        row.insertBefore(cell, row.firstChild);
     });
 
-    return csvRows.join('\n');
-}
+    // Add button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'csv-button-container';
+    buttonContainer.innerHTML = `
+        <button class="invert-selection-btn">Invert Selection</button>
+        <button class="csv-download-btn">Download as CSV</button>
+    `;
+    table.parentNode.insertBefore(buttonContainer, table.nextSibling);
 
-function downloadCSV(content, filename) {
-    const blob = new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename || 'wikipedia-table.csv';
-    document.body.appendChild(link); // Required for Firefox
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
+    // Add event listeners
+    setupTableEventListeners(table);
 }
 
 function enhanceList(list) {
