@@ -1,4 +1,4 @@
-# Wikipedia Enhancer Chrome Extension
+# Check On It: Add checkboxes and CSV export to Wikipedia tables and lists
 
 This Chrome extension enhances tables and lists on Wikipedia pages by adding interactivity and functionality like checkboxes, drag selection, and CSV export. Users can select elements dynamically and perform actions to simplify data extraction and organization.
 
