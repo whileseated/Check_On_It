@@ -291,3 +291,143 @@ function downloadCSV(content, filename) {
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
 }
+
+function enhanceList(list) {
+    // Add style to hide list markers
+    list.style.listStyleType = 'none';
+    
+    // Only get list items that have actual content
+    const items = Array.from(list.querySelectorAll('li')).filter(item => {
+        const hasText = item.textContent.trim().length > 0;
+        const hasLinks = item.querySelector('a');
+        return hasText && hasLinks; // Only keep items with both text and links
+    });
+    
+    items.forEach(item => {
+        // Remove the value attribute and any list styling
+        item.removeAttribute('value');
+        item.style.listStyleType = 'none';
+        
+        // Create checkbox wrapper
+        const checkboxWrapper = document.createElement('span');
+        checkboxWrapper.className = 'list-checkbox-wrapper';
+        checkboxWrapper.innerHTML = '<input type="checkbox" class="row-checkbox">';
+        
+        // Insert at the beginning of the list item
+        item.insertBefore(checkboxWrapper, item.firstChild);
+    });
+
+    // Add button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'csv-button-container';
+    buttonContainer.innerHTML = `
+        <button class="invert-selection-btn">Invert Selection</button>
+        <button class="csv-download-btn">Download as CSV</button>
+    `;
+    list.parentNode.insertBefore(buttonContainer, list.nextSibling);
+
+    // Add event listeners
+    setupListEventListeners(list);
+}
+
+function setupListEventListeners(list) {
+    const rowCheckboxes = list.querySelectorAll('.row-checkbox');
+    
+    // Add drag selection variables
+    let isDragging = false;
+    let lastCheckedState = null;
+    let mouseDownTime = 0;
+
+    // Add mousedown event to start dragging
+    list.addEventListener('mousedown', (e) => {
+        const checkbox = e.target.closest('.row-checkbox');
+        if (checkbox) {
+            mouseDownTime = Date.now();
+            isDragging = false;
+            lastCheckedState = checkbox.checked;
+        }
+    });
+
+    // Add mousemove event to detect drag
+    document.addEventListener('mousemove', (e) => {
+        if (!mouseDownTime) return;
+        
+        if (!isDragging && Date.now() - mouseDownTime > 200) {
+            isDragging = true;
+        }
+        
+        if (isDragging) {
+            const checkbox = e.target.closest('.row-checkbox');
+            if (checkbox) {
+                checkbox.checked = !lastCheckedState;
+            }
+        }
+    });
+
+    // Add mouseup event to stop dragging
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+        mouseDownTime = 0;
+    });
+
+    // Add mouseleave event to handle when mouse leaves the list
+    list.addEventListener('mouseleave', () => {
+        isDragging = false;
+        mouseDownTime = 0;
+    });
+
+    // CSV download button functionality
+    const downloadBtn = list.nextElementSibling.querySelector('.csv-download-btn');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+            const csvContent = generateListCSV(list);
+            downloadCSV(csvContent, 'list-data.csv');
+        });
+    }
+
+    // Add invert selection button functionality
+    const invertBtn = list.nextElementSibling.querySelector('.invert-selection-btn');
+    if (invertBtn) {
+        invertBtn.addEventListener('click', () => {
+            rowCheckboxes.forEach(checkbox => {
+                checkbox.checked = !checkbox.checked;
+            });
+        });
+    }
+}
+
+function generateListCSV(list) {
+    const items = list.querySelectorAll('li');
+    const csvRows = ['Selected,Text'];  // Add header row
+
+    items.forEach(item => {
+        const rowData = [];
+        // Add checkbox state
+        const checkbox = item.querySelector('.row-checkbox');
+        if (!checkbox) return;
+        
+        rowData.push(checkbox.checked ? '✓' : '');
+        
+        // Create a clone of the item to manipulate
+        const itemClone = item.cloneNode(true);
+        
+        // Remove the checkbox wrapper and any reference/citation elements
+        itemClone.querySelector('.list-checkbox-wrapper')?.remove();
+        itemClone.querySelectorAll('sup.reference')?.forEach(sup => sup.remove());
+        
+        // Get the text content directly, preserving original formatting
+        let itemText = itemClone.textContent
+            .replace(/^(\d+)\.\s+(?=.)/, '') // Only remove numbers followed by a period at the start of the line
+            .replace(/\s+/g, ' ') // Normalize spaces only
+            .trim();
+
+        if (itemText) {
+            // Escape quotes in the text and wrap in quotes for CSV
+            itemText = `"${itemText.replace(/"/g, '""')}"`;
+            rowData.push(itemText);
+            csvRows.push(rowData.join(','));
+        }
+    });
+
+    return csvRows.join('\n');
+}

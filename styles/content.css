@@ -25,3 +25,33 @@
 .list-checkbox {
     margin-right: 8px;
 }
+
+.list-select-all {
+    margin: 5px 0;
+    padding-left: 20px;  /* Align with list items */
+}
+
+.list-checkbox-wrapper {
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+/* Ensure proper spacing in nested lists */
+li .list-checkbox-wrapper {
+    margin-left: -20px;  /* Compensate for list item padding */
+}
+
+/* Add these styles */
+[data-enhanced="true"] {
+    list-style: none !important;
+}
+
+[data-enhanced="true"] li {
+    list-style: none !important;
+    display: flex !important;
+    align-items: flex-start !important;
+}
+
+[data-enhanced="true"] li::before {
+    content: none !important;
+}
