@@ -1,6 +1,6 @@
 # Check On It: Add checkboxes and CSV export to Wikipedia tables and lists
 
-This Chrome extension enhances tables and lists on Wikipedia pages by adding interactivity and functionality like checkboxes, drag selection, and CSV export. Users can select elements dynamically and perform actions to simplify data extraction and organization.
+[This Chrome extension](https://chromewebstore.google.com/detail/check-on-it-for-wikipedia/gpfanfohccjlckihfoceabdcbgbgkdca) enhances tables and lists on Wikipedia pages by adding interactivity and functionality like checkboxes, drag selection, and CSV export. Users can select elements dynamically and perform actions to simplify data extraction and organization.
 
 ## Features
 
@@ -67,5 +67,3 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 ![CSV example](./img/kusturica-csv.png)
 
 ---
-
-Enjoy enhancing Wikipedia with this easy-to-use Chrome extension!
