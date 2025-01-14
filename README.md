@@ -2,6 +2,8 @@
 
 [This Chrome extension](https://chromewebstore.google.com/detail/check-on-it-for-wikipedia/gpfanfohccjlckihfoceabdcbgbgkdca) enhances tables and lists on Wikipedia pages by adding interactivity and functionality like checkboxes, drag selection, and CSV export. Users can select elements dynamically and perform actions to simplify data extraction and organization.
 
+![Table example](./img/33-and-a-third.png)
+
 ## Features
 
 - **Dynamic Element Selection**: Allows users to pick tables or lists from the page dynamically.
@@ -62,8 +64,5 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 
 ## Screenshots
 
-![Table example](./img/33-and-a-third.png)
 ![Table example](./img/sight-and-sound.png)
 ![CSV example](./img/kusturica-csv.png)
-
----
